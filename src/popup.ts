@@ -159,7 +159,8 @@ async function initEngine(): Promise<void> {
 // ─────────────────────────────────────────────────────────────
 
 async function getCurrentTabs(): Promise<chrome.tabs.Tab[]> {
-  return chrome.tabs.query({ currentWindow: true });
+  const tabs = await chrome.tabs.query({ currentWindow: true });
+  return tabs.filter((t) => t.groupId === chrome.tabGroups.TAB_GROUP_ID_NONE);
 }
 
 function formatTabsForPrompt(tabs: chrome.tabs.Tab[]): string {
