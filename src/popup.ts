@@ -1,4 +1,4 @@
-// src/popup.js
+// src/popup.ts
 //
 // Orchestrates everything:
 //   1. Connects to the service worker WebLLM engine
@@ -6,7 +6,30 @@
 //   3. Sends tab list to the model → gets JSON groupings
 //   4. Applies groups via chrome.tabGroups API
 
-import { CreateServiceWorkerMLCEngine } from "@mlc-ai/web-llm";
+import {
+  CreateServiceWorkerMLCEngine,
+  type ServiceWorkerMLCEngine,
+} from "@mlc-ai/web-llm";
+
+// ─────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────
+
+type StatusState = "loading" | "ready" | "error" | "working";
+
+type TabGroupColor =
+  | "grey" | "blue" | "red" | "yellow" | "green"
+  | "pink" | "purple" | "cyan" | "orange";
+
+interface TabGroup {
+  name: string;
+  color: TabGroupColor;
+  tabIds: number[];
+}
+
+interface GroupingResponse {
+  groups: TabGroup[];
+}
 
 // ─────────────────────────────────────────────────────────────
 // Config
@@ -14,7 +37,6 @@ import { CreateServiceWorkerMLCEngine } from "@mlc-ai/web-llm";
 
 const DEFAULT_MODEL = "Phi-3.5-mini-instruct-q4f16_1-MLC";
 
-// JSON schema for structured output — WebLLM will guarantee this shape
 const GROUPING_SCHEMA = {
   type: "object",
   properties: {
@@ -26,7 +48,7 @@ const GROUPING_SCHEMA = {
           name:   { type: "string" },
           color:  {
             type: "string",
-            enum: ["grey","blue","red","yellow","green","pink","purple","cyan","orange"]
+            enum: ["grey","blue","red","yellow","green","pink","purple","cyan","orange"],
           },
           tabIds: { type: "array", items: { type: "integer" } },
         },
@@ -35,7 +57,7 @@ const GROUPING_SCHEMA = {
     },
   },
   required: ["groups"],
-};
+} as const;
 
 const SYSTEM_PROMPT = `You are a browser tab organizer. You MUST group tabs into MULTIPLE groups by topic.
 
@@ -54,49 +76,49 @@ Example: if tabs include GitHub, Amazon, YouTube, Gmail, the result should have 
 // DOM refs
 // ─────────────────────────────────────────────────────────────
 
-const $dot      = document.getElementById("statusDot");
-const $status   = document.getElementById("statusText");
-const $progress = document.getElementById("progressWrap");
-const $fill     = document.getElementById("progressFill");
-const $progLbl  = document.getElementById("progressLabel");
-const $tabCount = document.getElementById("tabCount");
-const $btnGroup = document.getElementById("btnGroup");
-const $results  = document.getElementById("results");
-const $list     = document.getElementById("groupList");
-const $error    = document.getElementById("errorBox");
-const $clear    = document.getElementById("clearBtn");
-const $settings = document.getElementById("settingsBtn");
-const $badge    = document.getElementById("modelBadge");
+const $dot      = document.getElementById("statusDot")!;
+const $status   = document.getElementById("statusText")!;
+const $progress = document.getElementById("progressWrap")!;
+const $fill     = document.getElementById("progressFill") as HTMLElement;
+const $progLbl  = document.getElementById("progressLabel")!;
+const $tabCount = document.getElementById("tabCount")!;
+const $btnGroup = document.getElementById("btnGroup") as HTMLButtonElement;
+const $results  = document.getElementById("results")!;
+const $list     = document.getElementById("groupList")!;
+const $error    = document.getElementById("errorBox")!;
+const $clear    = document.getElementById("clearBtn")!;
+const $settings = document.getElementById("settingsBtn")!;
+const $badge    = document.getElementById("modelBadge")!;
 
 // ─────────────────────────────────────────────────────────────
 // State helpers
 // ─────────────────────────────────────────────────────────────
 
-function setStatus(state, text) {
+function setStatus(state: StatusState, text: string): void {
   $dot.className = `status-dot ${state}`;
   $status.textContent = text;
 }
 
-function showProgress(pct, label) {
+function showProgress(pct: number, label: string): void {
   $progress.classList.add("visible");
   $fill.style.width = `${pct}%`;
   $progLbl.textContent = label;
 }
 
-function hideProgress() {
+function hideProgress(): void {
   $progress.classList.remove("visible");
 }
 
-function showError(msg) {
+function showError(msg: string): void {
   $error.textContent = msg;
   $error.classList.add("visible");
 }
 
-function hideError() {
+function hideError(): void {
   $error.classList.remove("visible");
 }
 
-function setButtonState(enabled, label = "Group Tabs") {
+function setButtonState(enabled: boolean, label = "Group Tabs"): void {
   $btnGroup.disabled = !enabled;
   $btnGroup.textContent = label;
 }
@@ -105,14 +127,14 @@ function setButtonState(enabled, label = "Group Tabs") {
 // Model init
 // ─────────────────────────────────────────────────────────────
 
-let engine = null;
+let engine: ServiceWorkerMLCEngine | null = null;
 
-async function getModel() {
+async function getModel(): Promise<string> {
   const stored = await chrome.storage.local.get("model");
-  return stored.model || DEFAULT_MODEL;
+  return (stored.model as string) || DEFAULT_MODEL;
 }
 
-async function initEngine() {
+async function initEngine(): Promise<void> {
   const model = await getModel();
   $badge.textContent = model.split("-").slice(0, 3).join("-").toLowerCase();
 
@@ -136,18 +158,17 @@ async function initEngine() {
 // Tab utilities
 // ─────────────────────────────────────────────────────────────
 
-async function getCurrentTabs() {
+async function getCurrentTabs(): Promise<chrome.tabs.Tab[]> {
   return chrome.tabs.query({ currentWindow: true });
 }
 
-function formatTabsForPrompt(tabs) {
+function formatTabsForPrompt(tabs: chrome.tabs.Tab[]): string {
   return tabs
     .map((t) => `id:${t.id} title:"${sanitize(t.title)}" url:"${sanitize(t.url)}"`)
     .join("\n");
 }
 
-// Strip quotes/newlines that could break the prompt
-function sanitize(str = "") {
+function sanitize(str = ""): string {
   return str.replace(/["'\n\r]/g, " ").slice(0, 120);
 }
 
@@ -155,26 +176,28 @@ function sanitize(str = "") {
 // AI grouping
 // ─────────────────────────────────────────────────────────────
 
-async function getGroupingsFromModel(tabs, retried = false) {
+async function getGroupingsFromModel(tabs: chrome.tabs.Tab[], retried = false): Promise<TabGroup[]> {
+  if (!engine) throw new Error("Engine not initialized");
+
   const tabList = formatTabsForPrompt(tabs);
 
   let reply;
   try {
     reply = await engine.chat.completions.create({
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user",   content: `Here are my open tabs:\n${tabList}\n\nGroup them:` },
-    ],
-    response_format: {
-      type: "json_object",
-      schema: JSON.stringify(GROUPING_SCHEMA),
-    },
-    temperature: 0.1,   // low temp = consistent groupings
-    max_tokens: 1024,
-  });
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user",   content: `Here are my open tabs:\n${tabList}\n\nGroup them:` },
+      ],
+      response_format: {
+        type: "json_object",
+        schema: JSON.stringify(GROUPING_SCHEMA),
+      },
+      temperature: 0.1,
+      max_tokens: 1024,
+    });
   } catch (err) {
-    // Service worker may have died — reload engine once and retry
-    if (!retried && err.message?.includes("Model not loaded")) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (!retried && message.includes("Model not loaded")) {
       console.warn("[TabGrouperAI] Engine lost, reloading…");
       setStatus("loading", "Reconnecting to model…");
       await initEngine();
@@ -183,8 +206,8 @@ async function getGroupingsFromModel(tabs, retried = false) {
     throw err;
   }
 
-  const raw = reply.choices[0].message.content;
-  const parsed = JSON.parse(raw);
+  const raw = reply.choices[0].message.content ?? "";
+  const parsed = JSON.parse(raw) as GroupingResponse;
 
   if (!parsed.groups || !Array.isArray(parsed.groups)) {
     throw new Error("Model returned unexpected JSON shape");
@@ -197,16 +220,15 @@ async function getGroupingsFromModel(tabs, retried = false) {
 // Apply Chrome tab groups
 // ─────────────────────────────────────────────────────────────
 
-async function applyGroups(groups, allTabs) {
-  const validTabIds = new Set(allTabs.map((t) => t.id));
-  const applied = [];
+async function applyGroups(groups: TabGroup[], allTabs: chrome.tabs.Tab[]): Promise<TabGroup[]> {
+  const validTabIds = new Set(allTabs.map((t) => t.id).filter((id): id is number => id !== undefined));
+  const applied: TabGroup[] = [];
 
   for (const group of groups) {
-    // Filter to only IDs that actually exist in this window
     const ids = (group.tabIds || []).filter((id) => validTabIds.has(id));
     if (ids.length === 0) continue;
 
-    const groupId = await chrome.tabs.group({ tabIds: ids });
+    const groupId = await chrome.tabs.group({ tabIds: ids as [number, ...number[]] });
     await chrome.tabGroups.update(groupId, {
       title: group.name,
       color: group.color,
@@ -223,7 +245,7 @@ async function applyGroups(groups, allTabs) {
 // Render results
 // ─────────────────────────────────────────────────────────────
 
-function renderResults(groups) {
+function renderResults(groups: TabGroup[]): void {
   $list.innerHTML = "";
 
   for (const g of groups) {
@@ -240,7 +262,7 @@ function renderResults(groups) {
   $results.classList.add("visible");
 }
 
-function escapeHtml(str) {
+function escapeHtml(str: string): string {
   return str
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -252,7 +274,7 @@ function escapeHtml(str) {
 // Main flow
 // ─────────────────────────────────────────────────────────────
 
-async function doGroupTabs() {
+async function doGroupTabs(): Promise<void> {
   hideError();
   $results.classList.remove("visible");
   setStatus("working", "Analyzing tabs…");
@@ -262,15 +284,17 @@ async function doGroupTabs() {
     const tabs = await getCurrentTabs();
     setStatus("working", `Grouping ${tabs.length} tabs…`);
 
-    const groups   = await getGroupingsFromModel(tabs);
-    const applied  = await applyGroups(groups, tabs);
+    const groups  = await getGroupingsFromModel(tabs);
+    const applied = await applyGroups(groups, tabs);
 
     renderResults(applied);
     setStatus("ready", `Done — ${applied.length} groups created`);
     setButtonState(true);
   } catch (err) {
     console.error("[TabGrouperAI]", err);
-    showError(`Error: ${err.message}`);
+    const message = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack ?? "" : "";
+    showError(`Error: ${message}`);
     setStatus("error", "Something went wrong");
     setButtonState(true);
   }
@@ -280,17 +304,19 @@ async function doGroupTabs() {
 // Clear groups
 // ─────────────────────────────────────────────────────────────
 
-async function clearGroups() {
+async function clearGroups(): Promise<void> {
   try {
     const groups = await chrome.tabGroups.query({ windowId: chrome.windows.WINDOW_ID_CURRENT });
     for (const g of groups) {
       const tabs = await chrome.tabs.query({ groupId: g.id });
-      await chrome.tabs.ungroup(tabs.map((t) => t.id));
+      const ids = tabs.map((t) => t.id).filter((id): id is number => id !== undefined);
+      if (ids.length > 0) await chrome.tabs.ungroup(ids as [number, ...number[]]);
     }
     $results.classList.remove("visible");
     setStatus("ready", "Groups cleared");
   } catch (err) {
-    showError(`Could not clear groups: ${err.message}`);
+    const message = err instanceof Error ? err.message : String(err);
+    showError(`Could not clear groups: ${message}`);
   }
 }
 
@@ -299,15 +325,15 @@ async function clearGroups() {
 // ─────────────────────────────────────────────────────────────
 
 const AVAILABLE_MODELS = [
-  "Phi-3.5-mini-instruct-q4f16_1-MLC",   // ~2.2GB  — recommended
-  "Llama-3.1-8B-Instruct-q4f32_1-MLC",   // ~4.5GB  — best quality
+  "Phi-3.5-mini-instruct-q4f16_1-MLC",
+  "Llama-3.1-8B-Instruct-q4f32_1-MLC",
 ];
 
-async function openSettings() {
+async function openSettings(): Promise<void> {
   const current = await getModel();
   const list = AVAILABLE_MODELS.map((m, i) => `${i + 1}. ${m}${m === current ? " ✓" : ""}`).join("\n");
   const choice = prompt(`Choose model (enter number):\n\n${list}\n\n⚠ Changing model triggers a new download.`);
-  const idx = parseInt(choice, 10) - 1;
+  const idx = parseInt(choice ?? "", 10) - 1;
 
   if (idx >= 0 && idx < AVAILABLE_MODELS.length && AVAILABLE_MODELS[idx] !== current) {
     await chrome.storage.local.set({ model: AVAILABLE_MODELS[idx] });
@@ -321,21 +347,20 @@ async function openSettings() {
 // ─────────────────────────────────────────────────────────────
 
 (async () => {
-  // Show tab count immediately
   const tabs = await getCurrentTabs();
   $tabCount.innerHTML = `<span>${tabs.length}</span> tabs in this window`;
 
-  // Wire up buttons
   $btnGroup.addEventListener("click", doGroupTabs);
   $clear.addEventListener("click", clearGroups);
   $settings.addEventListener("click", openSettings);
 
-  // Init engine (downloads model on first run)
   try {
     await initEngine();
   } catch (err) {
     console.error("[TabGrouperAI] init failed:", err);
+    const message = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack ?? "" : "";
     setStatus("error", "Failed to load model");
-    showError(`Model init failed: ${err.message}\n\n${err.stack || ""}`);
+    showError(`Model init failed: ${message}\n\n${stack}`);
   }
 })();

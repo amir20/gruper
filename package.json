@@ -5,12 +5,15 @@
   "description": "Chrome extension that groups tabs using an in-browser LLM via WebLLM",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build"
+    "build": "vite build",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@mlc-ai/web-llm": "^0.2.82"
   },
   "devDependencies": {
+    "@types/chrome": "^0.1.38",
+    "typescript": "^6.0.2",
     "vite": "^5.0.0",
     "vite-plugin-web-extension": "^4.5.0"
   }

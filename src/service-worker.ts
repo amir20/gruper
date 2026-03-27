@@ -1,4 +1,4 @@
-// src/service-worker.js
+// src/service-worker.ts
 //
 // This service worker hosts the WebLLM inference engine.
 // The popup communicates with it via Chrome's service worker messaging.
@@ -10,11 +10,11 @@ import { ServiceWorkerMLCEngineHandler } from "@mlc-ai/web-llm";
 // to be registered during initial script evaluation.
 const handler = new ServiceWorkerMLCEngineHandler();
 
-self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+self.addEventListener("activate", () => {
   console.log("[TabGrouperAI] Service worker activated");
 });
 
-self.addEventListener("message", (event) => {
-  handler.onmessage(event);
+self.addEventListener("message", (event: MessageEvent) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  handler.onmessage(event as any);
 });
