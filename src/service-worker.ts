@@ -10,7 +10,8 @@ import {
 import {
   DEFAULT_MODEL,
   SYSTEM_PROMPT,
-  formatTabsForPrompt,
+  buildTabPrompt,
+  remapTabIds,
   getCurrentTabs,
   applyGroups,
   extractJson,
@@ -119,7 +120,7 @@ chrome.commands.onCommand.addListener(async (command) => {
       return;
     }
 
-    const tabList = formatTabsForPrompt(tabs);
+    const { prompt: tabList, idMap } = buildTabPrompt(tabs);
     const reply = await engine.chat.completions.create({
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
@@ -133,7 +134,8 @@ chrome.commands.onCommand.addListener(async (command) => {
     console.log("[TabGrouperAI] Model response:", raw);
 
     const parsed = extractJson(raw);
-    const applied = await applyGroups(parsed.groups, tabs);
+    const remapped = remapTabIds(parsed.groups, idMap);
+    const applied = await applyGroups(remapped, tabs);
 
     stopSpinner();
     console.log("[TabGrouperAI] Applied", applied.length, "of", parsed.groups.length, "groups");

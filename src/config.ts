@@ -25,7 +25,7 @@ export const AVAILABLE_MODELS = [
   "Phi-3.5-mini-instruct-q4f16_1-MLC",
 ];
 
-export const SYSTEM_PROMPT = `You are a browser tab organizer. Given a list of tabs, output ONLY a JSON object grouping them by content/topic similarity.
+export const SYSTEM_PROMPT = `You are a browser tab organizer. Given a list of tabs with short numeric IDs, output ONLY a JSON object grouping them by content/topic similarity.
 
 Rules:
 - Group by topic/content, NOT by domain. Two tabs from the same site may be in different groups.
@@ -33,20 +33,43 @@ Rules:
 - Group names: 2-4 words max.
 - Every tab must belong to exactly one group. Do NOT skip any tabs.
 - Use a different color per group. Colors: grey, blue, red, yellow, green, pink, purple, cyan, orange.
-- Copy each tab id number EXACTLY as given — do not truncate or modify them.
+- Use the exact tab id numbers from the input.
 - Output ONLY the JSON object, no explanation, no markdown, no code fences.
 
+Example input:
+id:1 title:"GitHub" url:"https://github.com"
+id:2 title:"CNN News" url:"https://cnn.com"
+id:3 title:"VS Code" url:"https://code.visualstudio.com"
+
 Example output:
-{"groups":[{"name":"News","color":"red","tabIds":[123,456]},{"name":"Dev Tools","color":"blue","tabIds":[789]}]}`;
+{"groups":[{"name":"News","color":"red","tabIds":[2]},{"name":"Dev Tools","color":"blue","tabIds":[1,3]}]}`;
 
 export function sanitize(str = ""): string {
   return str.replace(/["'\n\r]/g, " ").slice(0, 120);
 }
 
-export function formatTabsForPrompt(tabs: chrome.tabs.Tab[]): string {
-  return tabs
-    .map((t) => `id:${t.id} title:"${sanitize(t.title)}" url:"${sanitize(t.url)}"`)
-    .join("\n");
+/**
+ * Build a prompt using short sequential IDs (1, 2, 3…) instead of Chrome's
+ * 9-digit IDs. Returns the prompt string and a map to convert back.
+ */
+export function buildTabPrompt(tabs: chrome.tabs.Tab[]): { prompt: string; idMap: Map<number, number> } {
+  const idMap = new Map<number, number>(); // short → real
+  const lines = tabs.map((t, i) => {
+    const shortId = i + 1;
+    idMap.set(shortId, t.id!);
+    return `id:${shortId} title:"${sanitize(t.title)}" url:"${sanitize(t.url)}"`;
+  });
+  return { prompt: lines.join("\n"), idMap };
+}
+
+/**
+ * Remap short IDs in parsed groups back to real Chrome tab IDs.
+ */
+export function remapTabIds(groups: TabGroup[], idMap: Map<number, number>): TabGroup[] {
+  return groups.map((g) => ({
+    ...g,
+    tabIds: g.tabIds.map((id) => idMap.get(id)).filter((id): id is number => id !== undefined),
+  }));
 }
 
 export async function getCurrentTabs(): Promise<chrome.tabs.Tab[]> {
@@ -63,7 +86,7 @@ export async function getCurrentTabs(): Promise<chrome.tabs.Tab[]> {
   }
 
   const tabs = await chrome.tabs.query({ windowId });
-  return tabs.filter((t) => t.groupId === chrome.tabGroups.TAB_GROUP_ID_NONE);
+  return tabs.filter((t) => t.groupId === chrome.tabGroups.TAB_GROUP_ID_NONE && !t.pinned);
 }
 
 /**
@@ -111,13 +134,17 @@ export function extractJson(raw: string): GroupingResponse {
 
 export async function applyGroups(groups: TabGroup[], allTabs: chrome.tabs.Tab[]): Promise<TabGroup[]> {
   const validTabIds = new Set(allTabs.map((t) => t.id).filter((id): id is number => id !== undefined));
+  const windowId = allTabs[0]?.windowId;
   const applied: TabGroup[] = [];
 
   for (const group of groups) {
     const ids = (group.tabIds || []).filter((id) => validTabIds.has(id));
     if (ids.length === 0) continue;
 
-    const groupId = await chrome.tabs.group({ tabIds: ids as [number, ...number[]] });
+    const groupId = await chrome.tabs.group({
+      tabIds: ids as [number, ...number[]],
+      createProperties: windowId ? { windowId } : undefined,
+    });
     await chrome.tabGroups.update(groupId, {
       title: group.name,
       color: group.color,

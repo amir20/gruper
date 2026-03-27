@@ -14,7 +14,8 @@ import {
   DEFAULT_MODEL,
   AVAILABLE_MODELS,
   SYSTEM_PROMPT,
-  formatTabsForPrompt,
+  buildTabPrompt,
+  remapTabIds,
   getCurrentTabs,
   applyGroups,
   extractJson,
@@ -123,7 +124,7 @@ async function initEngine(): Promise<void> {
 async function getGroupingsFromModel(tabs: chrome.tabs.Tab[], retried = false): Promise<TabGroup[]> {
   if (!engine) throw new Error("Engine not initialized");
 
-  const tabList = formatTabsForPrompt(tabs);
+  const { prompt: tabList, idMap } = buildTabPrompt(tabs);
 
   let reply;
   try {
@@ -147,7 +148,7 @@ async function getGroupingsFromModel(tabs: chrome.tabs.Tab[], retried = false): 
   }
 
   const raw = reply.choices[0].message.content ?? "";
-  return extractJson(raw).groups;
+  return remapTabIds(extractJson(raw).groups, idMap);
 }
 
 // ─────────────────────────────────────────────────────────────
