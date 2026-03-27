@@ -25,28 +25,15 @@ export const AVAILABLE_MODELS = [
   "Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
 ];
 
-export const SYSTEM_PROMPT = `You are a browser tab organizer. Given a list of tabs with short numeric IDs, output ONLY a JSON object grouping them by content/topic similarity.
-
-Rules:
-- Group by topic/content, NOT by domain. Two tabs from the same site may be in different groups.
-- NEVER put all tabs in one group — always split by topic.
-- Group names: 2-4 words max.
-- Every tab must belong to exactly one group. Do NOT skip any tabs.
-- Use a different color per group. Colors: grey, blue, red, yellow, green, pink, purple, cyan, orange.
-- Use the exact tab id numbers from the input.
-- Output ONLY the JSON object, no explanation, no markdown, no code fences.
-
-Example input:
-id:1 title:"GitHub" url:"https://github.com"
-id:2 title:"CNN News" url:"https://cnn.com"
-id:3 title:"VS Code" url:"https://code.visualstudio.com"
-
-Example output:
-{"groups":[{"name":"News","color":"red","tabIds":[2]},{"name":"Dev Tools","color":"blue","tabIds":[1,3]}]}`;
+export { default as SYSTEM_PROMPT } from "./system-prompt.txt?raw";
 
 export async function getModel(): Promise<string> {
   const stored = await chrome.storage.local.get("model");
   return (stored.model as string) || DEFAULT_MODEL;
+}
+
+export function toMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }
 
 export function sanitize(str = ""): string {

@@ -15,6 +15,7 @@ import {
   applyGroups,
   extractJson,
   getModel,
+  toMessage,
 } from "./config";
 
 let handler: ExtensionServiceWorkerMLCEngineHandler | undefined;
@@ -156,7 +157,7 @@ chrome.commands.onCommand.addListener(async (command) => {
       type: "basic",
       iconUrl: chrome.runtime.getURL("icons/icon128.png"),
       title: "Tab Grouper AI",
-      message: `${err instanceof Error ? err.message : String(err)}`,
+      message: toMessage(err),
     });
   }
 

@@ -1,9 +1,15 @@
 import { defineConfig } from "vite";
+import tailwindcss from "@tailwindcss/vite";
+import vue from "@vitejs/plugin-vue";
 import webExtension from "vite-plugin-web-extension";
 
 export default defineConfig({
   base: "",
-  plugins: [webExtension({ disableAutoLaunch: true })],
+  plugins: [
+    tailwindcss(),
+    vue(),
+    webExtension({ disableAutoLaunch: true }),
+  ],
   build: {
     outDir: "dist",
     emptyOutDir: true,

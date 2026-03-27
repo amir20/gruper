@@ -10,10 +10,14 @@
     "package": "pnpm build && cd dist && zip -r ../tab-grouper-ai.zip ."
   },
   "dependencies": {
-    "@mlc-ai/web-llm": "^0.2.82"
+    "@mlc-ai/web-llm": "^0.2.82",
+    "vue": "^3.5.31"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.2.2",
     "@types/chrome": "^0.1.38",
+    "@vitejs/plugin-vue": "^6.0.5",
+    "tailwindcss": "^4.2.2",
     "typescript": "^6.0.2",
     "vite": "^8.0.3",
     "vite-plugin-web-extension": "^4.5.0"
