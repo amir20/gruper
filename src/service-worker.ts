@@ -17,14 +17,11 @@ import {
   extractJson,
 } from "./config";
 
-// Shared engine instance — used by both the handler (popup) and shortcut
-const engine = new MLCEngine();
 let handler: ExtensionServiceWorkerMLCEngineHandler | undefined;
 
 chrome.runtime.onConnect.addListener((port) => {
   if (handler === undefined) {
     handler = new ExtensionServiceWorkerMLCEngineHandler(port);
-    handler.engine = engine;
   } else {
     handler.setPort(port);
   }
@@ -35,38 +32,37 @@ chrome.runtime.onConnect.addListener((port) => {
 // Model loading
 // ─────────────────────────────────────────────────────────────
 
-let modelLoaded = false;
-let modelLoading: Promise<void> | null = null;
-
 async function getModel(): Promise<string> {
   const stored = await chrome.storage.local.get("model");
   return (stored.model as string) || DEFAULT_MODEL;
 }
 
-async function ensureModelLoaded(): Promise<void> {
-  if (modelLoaded) return;
-  if (modelLoading) return modelLoading;
-
-  modelLoading = (async () => {
-    const model = await getModel();
-    console.log("[TabGrouperAI] Loading model:", model);
-    setBadge("…", "#6366f1");
-    await engine.reload(model);
-    modelLoaded = true;
-    modelLoading = null;
-    console.log("[TabGrouperAI] Model loaded");
-  })();
-
-  return modelLoading;
+function getEngine(): MLCEngine | undefined {
+  return handler?.engine;
 }
 
-// Track when popup loads a model through the handler
-const origReload = engine.reload.bind(engine);
-engine.reload = async (...args: Parameters<typeof engine.reload>) => {
-  const result = await origReload(...args);
-  modelLoaded = true;
-  return result;
-};
+function isModelLoaded(): boolean {
+  return !!(handler?.modelId && handler.modelId.length > 0);
+}
+
+async function ensureModelLoaded(): Promise<void> {
+  if (isModelLoaded()) return;
+
+  // No handler yet — create a temporary engine to load the model.
+  // The popup will replace it when it connects.
+  if (!handler) {
+    // We can't load without a handler in the extension SW architecture.
+    // Notify the user to open the popup.
+    throw new Error("Model not loaded — open the extension popup to download the model first.");
+  }
+
+  const model = await getModel();
+  console.log("[TabGrouperAI] Loading model from shortcut:", model);
+  setBadge("…", "#6366f1");
+  await handler.engine.reload(model);
+  handler.modelId = [model];
+  console.log("[TabGrouperAI] Model loaded");
+}
 
 // ─────────────────────────────────────────────────────────────
 // Badge helpers
@@ -111,6 +107,7 @@ chrome.commands.onCommand.addListener(async (command) => {
 
   try {
     await ensureModelLoaded();
+    const engine = getEngine()!;
 
     const tabs = await getCurrentTabs();
     console.log("[TabGrouperAI] Shortcut: found", tabs.length, "ungrouped tabs");
@@ -165,7 +162,7 @@ chrome.commands.onCommand.addListener(async (command) => {
       type: "basic",
       iconUrl: chrome.runtime.getURL("icons/icon128.png"),
       title: "Tab Grouper AI",
-      message: `Grouping failed: ${err instanceof Error ? err.message : String(err)}`,
+      message: `${err instanceof Error ? err.message : String(err)}`,
     });
   }
 

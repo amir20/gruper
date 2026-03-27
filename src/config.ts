@@ -16,13 +16,13 @@ export interface GroupingResponse {
   groups: TabGroup[];
 }
 
-export const DEFAULT_MODEL = "Qwen2.5-3B-Instruct-q4f16_1-MLC";
+export const DEFAULT_MODEL = "Qwen2.5-7B-Instruct-q4f16_1-MLC";
 
 export const AVAILABLE_MODELS = [
+  "Qwen2.5-7B-Instruct-q4f16_1-MLC",
+  "Llama-3.1-8B-Instruct-q4f16_1-MLC",
   "Qwen2.5-3B-Instruct-q4f16_1-MLC",
   "Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
-  "Llama-3.2-3B-Instruct-q4f16_1-MLC",
-  "Phi-3.5-mini-instruct-q4f16_1-MLC",
 ];
 
 export const SYSTEM_PROMPT = `You are a browser tab organizer. Given a list of tabs with short numeric IDs, output ONLY a JSON object grouping them by content/topic similarity.
@@ -132,6 +132,8 @@ export function extractJson(raw: string): GroupingResponse {
   return parsed as GroupingResponse;
 }
 
+const VALID_COLORS = new Set<TabGroupColor>(["blue","cyan","green","grey","orange","pink","purple","red","yellow"]);
+
 export async function applyGroups(groups: TabGroup[], allTabs: chrome.tabs.Tab[]): Promise<TabGroup[]> {
   const validTabIds = new Set(allTabs.map((t) => t.id).filter((id): id is number => id !== undefined));
   const windowId = allTabs[0]?.windowId;
@@ -141,13 +143,15 @@ export async function applyGroups(groups: TabGroup[], allTabs: chrome.tabs.Tab[]
     const ids = (group.tabIds || []).filter((id) => validTabIds.has(id));
     if (ids.length === 0) continue;
 
+    const color: TabGroupColor = VALID_COLORS.has(group.color) ? group.color : "grey";
+
     const groupId = await chrome.tabs.group({
       tabIds: ids as [number, ...number[]],
       createProperties: windowId ? { windowId } : undefined,
     });
     await chrome.tabGroups.update(groupId, {
       title: group.name,
-      color: group.color,
+      color,
       collapsed: false,
     });
 
