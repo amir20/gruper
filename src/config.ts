@@ -44,6 +44,11 @@ id:3 title:"VS Code" url:"https://code.visualstudio.com"
 Example output:
 {"groups":[{"name":"News","color":"red","tabIds":[2]},{"name":"Dev Tools","color":"blue","tabIds":[1,3]}]}`;
 
+export async function getModel(): Promise<string> {
+  const stored = await chrome.storage.local.get("model");
+  return (stored.model as string) || DEFAULT_MODEL;
+}
+
 export function sanitize(str = ""): string {
   return str.replace(/["'\n\r]/g, " ").slice(0, 120);
 }
@@ -54,11 +59,14 @@ export function sanitize(str = ""): string {
  */
 export function buildTabPrompt(tabs: chrome.tabs.Tab[]): { prompt: string; idMap: Map<number, number> } {
   const idMap = new Map<number, number>(); // short → real
-  const lines = tabs.map((t, i) => {
-    const shortId = i + 1;
-    idMap.set(shortId, t.id!);
-    return `id:${shortId} title:"${sanitize(t.title)}" url:"${sanitize(t.url)}"`;
-  });
+  const lines: string[] = [];
+  let shortId = 0;
+  for (const t of tabs) {
+    if (t.id == null) continue;
+    shortId += 1;
+    idMap.set(shortId, t.id);
+    lines.push(`id:${shortId} title:"${sanitize(t.title)}" url:"${sanitize(t.url)}"`);
+  }
   return { prompt: lines.join("\n"), idMap };
 }
 
@@ -76,13 +84,14 @@ export async function getCurrentTabs(): Promise<chrome.tabs.Tab[]> {
   // Find the last focused normal window — "currentWindow" from a service worker
   // context may resolve to a DevTools or popup window which can't have tab groups.
   const lastFocused = await chrome.windows.getLastFocused();
-  let windowId = lastFocused.id!;
+  let windowId = lastFocused.id;
 
   // If the focused window isn't a normal window, find one that is
-  if (lastFocused.type !== "normal") {
+  if (lastFocused.type !== "normal" || windowId == null) {
     const allWindows = await chrome.windows.getAll({ windowTypes: ["normal"] });
     if (allWindows.length === 0) return [];
-    windowId = allWindows[0].id!;
+    windowId = allWindows[0].id;
+    if (windowId == null) return [];
   }
 
   const tabs = await chrome.tabs.query({ windowId });

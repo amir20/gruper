@@ -19,6 +19,7 @@ import {
   getCurrentTabs,
   applyGroups,
   extractJson,
+  getModel,
   type TabGroup,
 } from "./config";
 
@@ -84,11 +85,6 @@ function setButtonState(enabled: boolean, label = "Group Tabs"): void {
 // ─────────────────────────────────────────────────────────────
 
 let engine: ExtensionServiceWorkerMLCEngine | null = null;
-
-async function getModel(): Promise<string> {
-  const stored = await chrome.storage.local.get("model");
-  return (stored.model as string) || DEFAULT_MODEL;
-}
 
 async function initEngine(): Promise<void> {
   const model = await getModel();
@@ -203,7 +199,6 @@ async function doGroupTabs(): Promise<void> {
   } catch (err) {
     console.error("[TabGrouperAI]", err);
     const message = err instanceof Error ? err.message : String(err);
-    const stack = err instanceof Error ? err.stack ?? "" : "";
     showError(`Error: ${message}`);
     setStatus("error", "Something went wrong");
     setButtonState(true);
@@ -276,9 +271,8 @@ async function openSettings(): Promise<void> {
       }
     } else {
       console.error("[TabGrouperAI] init failed:", err);
-      const stack = err instanceof Error ? err.stack ?? "" : "";
       setStatus("error", "Failed to load model");
-      showError(`Model init failed: ${message}\n\n${stack}`);
+      showError(`Model init failed: ${message}`);
     }
   }
 })();

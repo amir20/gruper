@@ -8,13 +8,13 @@ import {
   ExtensionServiceWorkerMLCEngineHandler,
 } from "@mlc-ai/web-llm";
 import {
-  DEFAULT_MODEL,
   SYSTEM_PROMPT,
   buildTabPrompt,
   remapTabIds,
   getCurrentTabs,
   applyGroups,
   extractJson,
+  getModel,
 } from "./config";
 
 let handler: ExtensionServiceWorkerMLCEngineHandler | undefined;
@@ -32,11 +32,6 @@ chrome.runtime.onConnect.addListener((port) => {
 // Model loading
 // ─────────────────────────────────────────────────────────────
 
-async function getModel(): Promise<string> {
-  const stored = await chrome.storage.local.get("model");
-  return (stored.model as string) || DEFAULT_MODEL;
-}
-
 function getEngine(): MLCEngine | undefined {
   return handler?.engine;
 }
@@ -48,11 +43,7 @@ function isModelLoaded(): boolean {
 async function ensureModelLoaded(): Promise<void> {
   if (isModelLoaded()) return;
 
-  // No handler yet — create a temporary engine to load the model.
-  // The popup will replace it when it connects.
   if (!handler) {
-    // We can't load without a handler in the extension SW architecture.
-    // Notify the user to open the popup.
     throw new Error("Model not loaded — open the extension popup to download the model first.");
   }
 
@@ -60,6 +51,8 @@ async function ensureModelLoaded(): Promise<void> {
   console.log("[TabGrouperAI] Loading model from shortcut:", model);
   setBadge("…", "#6366f1");
   await handler.engine.reload(model);
+  // Track loaded model so isModelLoaded() returns true.
+  // This mutates an internal property — may need updating if the library changes.
   handler.modelId = [model];
   console.log("[TabGrouperAI] Model loaded");
 }
@@ -107,7 +100,8 @@ chrome.commands.onCommand.addListener(async (command) => {
 
   try {
     await ensureModelLoaded();
-    const engine = getEngine()!;
+    const engine = getEngine();
+    if (!engine) throw new Error("Engine unavailable after model load");
 
     const tabs = await getCurrentTabs();
     console.log("[TabGrouperAI] Shortcut: found", tabs.length, "ungrouped tabs");

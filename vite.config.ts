@@ -9,5 +9,8 @@ export default defineConfig({
     emptyOutDir: true,
     // WebLLM uses WASM — don't try to inline it
     assetsInlineLimit: 0,
+    // Suppress the large chunk warning — @mlc-ai/web-llm is ~6MB and
+    // must be inlined into each entry (service worker can't use shared chunks).
+    chunkSizeWarningLimit: 6000,
   },
 });

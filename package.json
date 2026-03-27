@@ -4,9 +4,10 @@
   "type": "module",
   "description": "Chrome extension that groups tabs using an in-browser LLM via WebLLM",
   "scripts": {
-    "dev": "vite dev",
+    "dev": "vite build --watch",
     "build": "vite build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "package": "pnpm build && cd dist && zip -r ../tab-grouper-ai.zip ."
   },
   "dependencies": {
     "@mlc-ai/web-llm": "^0.2.82"
