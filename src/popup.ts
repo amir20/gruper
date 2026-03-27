@@ -7,70 +7,25 @@
 //   4. Applies groups via chrome.tabGroups API
 
 import {
-  CreateServiceWorkerMLCEngine,
-  type ServiceWorkerMLCEngine,
+  CreateExtensionServiceWorkerMLCEngine,
+  type ExtensionServiceWorkerMLCEngine,
 } from "@mlc-ai/web-llm";
+import {
+  DEFAULT_MODEL,
+  AVAILABLE_MODELS,
+  SYSTEM_PROMPT,
+  formatTabsForPrompt,
+  getCurrentTabs,
+  applyGroups,
+  extractJson,
+  type TabGroup,
+} from "./config";
 
 // ─────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────
 
 type StatusState = "loading" | "ready" | "error" | "working";
-
-type TabGroupColor =
-  | "grey" | "blue" | "red" | "yellow" | "green"
-  | "pink" | "purple" | "cyan" | "orange";
-
-interface TabGroup {
-  name: string;
-  color: TabGroupColor;
-  tabIds: number[];
-}
-
-interface GroupingResponse {
-  groups: TabGroup[];
-}
-
-// ─────────────────────────────────────────────────────────────
-// Config
-// ─────────────────────────────────────────────────────────────
-
-const DEFAULT_MODEL = "Phi-3.5-mini-instruct-q4f16_1-MLC";
-
-const GROUPING_SCHEMA = {
-  type: "object",
-  properties: {
-    groups: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          name:   { type: "string" },
-          color:  {
-            type: "string",
-            enum: ["grey","blue","red","yellow","green","pink","purple","cyan","orange"],
-          },
-          tabIds: { type: "array", items: { type: "integer" } },
-        },
-        required: ["name", "color", "tabIds"],
-      },
-    },
-  },
-  required: ["groups"],
-} as const;
-
-const SYSTEM_PROMPT = `You are a browser tab organizer. You MUST group tabs into MULTIPLE groups by topic.
-
-Rules:
-- Create between 2 and 8 groups based on tab topics
-- NEVER put all tabs in one group — always split by topic
-- Group names must be short (2-4 words max)
-- Every tab must belong to exactly one group
-- Use a different color for each group
-- Group by domain AND topic similarity (e.g. two YouTube tabs about different topics may go in different groups)
-- Return ONLY valid JSON
-
-Example: if tabs include GitHub, Amazon, YouTube, Gmail, the result should have separate groups like "Dev Tools", "Shopping", "Entertainment", "Email" — NOT one big group.`;
 
 // ─────────────────────────────────────────────────────────────
 // DOM refs
@@ -127,7 +82,7 @@ function setButtonState(enabled: boolean, label = "Group Tabs"): void {
 // Model init
 // ─────────────────────────────────────────────────────────────
 
-let engine: ServiceWorkerMLCEngine | null = null;
+let engine: ExtensionServiceWorkerMLCEngine | null = null;
 
 async function getModel(): Promise<string> {
   const stored = await chrome.storage.local.get("model");
@@ -141,7 +96,13 @@ async function initEngine(): Promise<void> {
   setStatus("loading", "Loading model…");
   setButtonState(false);
 
-  engine = await CreateServiceWorkerMLCEngine(model, {
+  // Fully unload previous engine to avoid WASM binding mismatches
+  if (engine) {
+    try { await engine.unload(); } catch { /* ignore */ }
+    engine = null;
+  }
+
+  engine = await CreateExtensionServiceWorkerMLCEngine(model, {
     initProgressCallback: (progress) => {
       const pct = Math.round((progress.progress ?? 0) * 100);
       showProgress(pct, progress.text || "Downloading model…");
@@ -154,24 +115,6 @@ async function initEngine(): Promise<void> {
   setButtonState(true);
 }
 
-// ─────────────────────────────────────────────────────────────
-// Tab utilities
-// ─────────────────────────────────────────────────────────────
-
-async function getCurrentTabs(): Promise<chrome.tabs.Tab[]> {
-  const tabs = await chrome.tabs.query({ currentWindow: true });
-  return tabs.filter((t) => t.groupId === chrome.tabGroups.TAB_GROUP_ID_NONE);
-}
-
-function formatTabsForPrompt(tabs: chrome.tabs.Tab[]): string {
-  return tabs
-    .map((t) => `id:${t.id} title:"${sanitize(t.title)}" url:"${sanitize(t.url)}"`)
-    .join("\n");
-}
-
-function sanitize(str = ""): string {
-  return str.replace(/["'\n\r]/g, " ").slice(0, 120);
-}
 
 // ─────────────────────────────────────────────────────────────
 // AI grouping
@@ -187,19 +130,15 @@ async function getGroupingsFromModel(tabs: chrome.tabs.Tab[], retried = false): 
     reply = await engine.chat.completions.create({
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
-        { role: "user",   content: `Here are my open tabs:\n${tabList}\n\nGroup them:` },
+        { role: "user", content: `Here are my open tabs:\n${tabList}\n\nGroup them:` },
       ],
-      response_format: {
-        type: "json_object",
-        schema: JSON.stringify(GROUPING_SCHEMA),
-      },
-      temperature: 0.1,
+      temperature: 0.3,
       max_tokens: 1024,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    if (!retried && message.includes("Model not loaded")) {
-      console.warn("[TabGrouperAI] Engine lost, reloading…");
+    if (!retried && (message.includes("Model not loaded") || message.includes("BindingError"))) {
+      console.warn("[TabGrouperAI] Engine lost or stale, reloading…");
       setStatus("loading", "Reconnecting to model…");
       await initEngine();
       return getGroupingsFromModel(tabs, true);
@@ -208,38 +147,7 @@ async function getGroupingsFromModel(tabs: chrome.tabs.Tab[], retried = false): 
   }
 
   const raw = reply.choices[0].message.content ?? "";
-  const parsed = JSON.parse(raw) as GroupingResponse;
-
-  if (!parsed.groups || !Array.isArray(parsed.groups)) {
-    throw new Error("Model returned unexpected JSON shape");
-  }
-
-  return parsed.groups;
-}
-
-// ─────────────────────────────────────────────────────────────
-// Apply Chrome tab groups
-// ─────────────────────────────────────────────────────────────
-
-async function applyGroups(groups: TabGroup[], allTabs: chrome.tabs.Tab[]): Promise<TabGroup[]> {
-  const validTabIds = new Set(allTabs.map((t) => t.id).filter((id): id is number => id !== undefined));
-  const applied: TabGroup[] = [];
-
-  for (const group of groups) {
-    const ids = (group.tabIds || []).filter((id) => validTabIds.has(id));
-    if (ids.length === 0) continue;
-
-    const groupId = await chrome.tabs.group({ tabIds: ids as [number, ...number[]] });
-    await chrome.tabGroups.update(groupId, {
-      title: group.name,
-      color: group.color,
-      collapsed: false,
-    });
-
-    applied.push({ ...group, tabIds: ids });
-  }
-
-  return applied;
+  return extractJson(raw).groups;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -325,11 +233,6 @@ async function clearGroups(): Promise<void> {
 // Settings (simple model picker via prompt)
 // ─────────────────────────────────────────────────────────────
 
-const AVAILABLE_MODELS = [
-  "Phi-3.5-mini-instruct-q4f16_1-MLC",
-  "Llama-3.1-8B-Instruct-q4f32_1-MLC",
-];
-
 async function openSettings(): Promise<void> {
   const current = await getModel();
   const list = AVAILABLE_MODELS.map((m, i) => `${i + 1}. ${m}${m === current ? " ✓" : ""}`).join("\n");
@@ -358,10 +261,23 @@ async function openSettings(): Promise<void> {
   try {
     await initEngine();
   } catch (err) {
-    console.error("[TabGrouperAI] init failed:", err);
     const message = err instanceof Error ? err.message : String(err);
-    const stack = err instanceof Error ? err.stack ?? "" : "";
-    setStatus("error", "Failed to load model");
-    showError(`Model init failed: ${message}\n\n${stack}`);
+    if (message.includes("unload")) {
+      console.warn("[TabGrouperAI] Engine unloaded during init, retrying…");
+      try {
+        engine = null;
+        await initEngine();
+      } catch (retryErr) {
+        console.error("[TabGrouperAI] retry failed:", retryErr);
+        const retryMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
+        setStatus("error", "Failed to load model");
+        showError(`Model init failed: ${retryMsg}`);
+      }
+    } else {
+      console.error("[TabGrouperAI] init failed:", err);
+      const stack = err instanceof Error ? err.stack ?? "" : "";
+      setStatus("error", "Failed to load model");
+      showError(`Model init failed: ${message}\n\n${stack}`);
+    }
   }
 })();

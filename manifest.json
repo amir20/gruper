@@ -6,7 +6,8 @@
   "permissions": [
     "tabs",
     "tabGroups",
-    "storage"
+    "storage",
+    "notifications"
   ],
   "host_permissions": [
     "https://huggingface.co/*",
@@ -18,6 +19,15 @@
   "background": {
     "service_worker": "src/service-worker.ts",
     "type": "module"
+  },
+  "commands": {
+    "group-tabs": {
+      "suggested_key": {
+        "default": "Alt+Shift+G",
+        "mac": "Alt+Shift+G"
+      },
+      "description": "Group tabs with AI"
+    }
   },
   "action": {
     "default_popup": "src/popup.html",
