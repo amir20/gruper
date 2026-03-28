@@ -16,9 +16,20 @@ popup.js  ──── chrome.tabs.query() ──→  your open tabs
 
 The model lives in the **service worker**, so it stays warm between popup opens.
 
+## Browser Compatibility
+
+| Browser | Status | Notes |
+|---------|--------|-------|
+| Chrome 113+ | Supported | Fully tested |
+| Dia | Supported | Fully tested |
+| Arc | Not supported | Arc does not implement the `chrome.tabGroups` API |
+
+Other Chromium-based browsers may work if they support the `chrome.tabGroups` API and WebGPU.
+
 ## Requirements
 
-- Chrome 113+ (WebGPU required)
+- A supported Chromium-based browser (see above)
+- WebGPU support
 - ~1GB free RAM/VRAM for the default model
 - Node.js 18+
 
