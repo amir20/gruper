@@ -3,7 +3,7 @@ defineProps<{ pct: number; label: string }>();
 </script>
 
 <template>
-  <div class="px-4 pb-2.5">
+  <div class="px-4 py-2.5 border-b border-divider">
     <div class="w-full h-1 bg-divider rounded-sm overflow-hidden">
       <div class="h-full bg-accent rounded-sm transition-[width] duration-300 ease-out" :style="{ width: pct + '%' }" />
     </div>
