@@ -74,16 +74,21 @@ export function useEngine() {
       engine = null;
     }
 
-    engine = await CreateExtensionServiceWorkerMLCEngine(config.model, {
-      initProgressCallback: ({ progress: p, text }) => {
-        const pct = Math.round((p ?? 0) * 100);
-        progress.value = { visible: true, pct, label: text || "Downloading model..." };
-        statusText.value = `Downloading... ${pct}%`;
-      },
-    });
+    try {
+      engine = await CreateExtensionServiceWorkerMLCEngine(config.model, {
+        initProgressCallback: ({ progress: p, text }) => {
+          const pct = Math.round((p ?? 0) * 100);
+          progress.value = { visible: true, pct, label: text || "Downloading model..." };
+          statusText.value = `Downloading... ${pct}%`;
+        },
+      });
 
-    progress.value = { visible: false, pct: 0, label: "" };
-    setStatus("ready", "Model ready");
+      progress.value = { visible: false, pct: 0, label: "" };
+      setStatus("ready", "Model ready");
+    } catch (err) {
+      progress.value = { visible: false, pct: 0, label: "" };
+      setError("Local AI unavailable in this browser. Switch to OpenRouter for cloud-based grouping.");
+    }
   }
 
   async function applyConfig(config: Partial<ProviderConfig>): Promise<void> {
