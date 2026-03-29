@@ -111,11 +111,11 @@ export function remapTabIds(groups: TabGroup[], idMap: Map<number, number>): Tab
 export async function getCurrentTabs(): Promise<chrome.tabs.Tab[]> {
   // Find the last focused normal window — "currentWindow" from a service worker
   // context may resolve to a DevTools or popup window which can't have tab groups.
-  const lastFocused = await chrome.windows.getLastFocused();
-  let windowId = lastFocused.id;
+  const lastFocused = await chrome.windows.getLastFocused().catch(() => undefined);
+  let windowId = lastFocused?.id;
 
   // If the focused window isn't a normal window, find one that is
-  if (lastFocused.type !== "normal" || windowId == null) {
+  if (!lastFocused || lastFocused.type !== "normal" || windowId == null) {
     const allWindows = await chrome.windows.getAll({ windowTypes: ["normal"] });
     if (allWindows.length === 0) return [];
     windowId = allWindows[0].id;
