@@ -1,4 +1,4 @@
-// src/config.ts
+// utils/config.ts
 //
 // Shared constants used by both popup and service worker.
 
@@ -50,7 +50,7 @@ export const POPULAR_OPENROUTER_MODELS = [
   "deepseek/deepseek-chat-v3-0324",
 ];
 
-export { default as SYSTEM_PROMPT } from "./system-prompt.txt?raw";
+export { default as SYSTEM_PROMPT } from "@/assets/system-prompt.txt?raw";
 
 export async function getProviderConfig(): Promise<ProviderConfig> {
   const stored = await chrome.storage.local.get([

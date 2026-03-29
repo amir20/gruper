@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { getCurrentTabs, applyGroups, toMessage, type TabGroup, type Provider } from "./config";
-import { useEngine } from "./composables/useEngine";
-import StatusDot from "./components/StatusDot.vue";
-import ProgressBar from "./components/ProgressBar.vue";
-import GroupItem from "./components/GroupItem.vue";
-import ModelPicker from "./components/ModelPicker.vue";
+import { getCurrentTabs, applyGroups, toMessage, type TabGroup, type Provider } from "@/utils/config";
+import { useEngine } from "@/composables/useEngine";
+import StatusDot from "@/components/StatusDot.vue";
+import ProgressBar from "@/components/ProgressBar.vue";
+import GroupItem from "@/components/GroupItem.vue";
+import ModelPicker from "@/components/ModelPicker.vue";
 
 const engine = useEngine();
 const { status, statusText, error, currentModel, modelBadge, progress } = engine;

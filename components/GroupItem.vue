@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { TabGroup } from "../config";
+import type { TabGroup } from "@/utils/config";
 
 defineProps<{ group: TabGroup }>();
 

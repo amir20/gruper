@@ -1,4 +1,4 @@
-// src/openrouter.ts
+// utils/openrouter.ts
 //
 // Minimal OpenRouter API client using the OpenAI-compatible chat completions endpoint.
 

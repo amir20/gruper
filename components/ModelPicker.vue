@@ -6,7 +6,7 @@ import {
   getProviderConfig,
   type Provider,
   type ModelOption,
-} from "../config";
+} from "@/utils/config";
 
 const emit = defineEmits<{
   apply: [config: { provider: Provider; model?: string; openrouterApiKey?: string; openrouterModel?: string }];

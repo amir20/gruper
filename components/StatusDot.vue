@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Status } from "../composables/useEngine";
+import type { Status } from "@/composables/useEngine";
 
 defineProps<{ state: Status }>();
 

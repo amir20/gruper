@@ -14,8 +14,8 @@ import {
   type TabGroup,
   type Provider,
   type ProviderConfig,
-} from "../config";
-import { chatCompletion } from "../openrouter";
+} from "@/utils/config";
+import { chatCompletion } from "@/utils/openrouter";
 
 export type Status = "loading" | "ready" | "error" | "working";
 
