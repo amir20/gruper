@@ -19,6 +19,18 @@ export default defineConfig({
       extension_pages:
         "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'",
     },
+    icons: {
+      16: "icons/icon16.png",
+      48: "icons/icon48.png",
+      128: "icons/icon128.png",
+    },
+    action: {
+      default_icon: {
+        16: "icons/icon16.png",
+        48: "icons/icon48.png",
+        128: "icons/icon128.png",
+      },
+    },
     commands: {
       "group-tabs": {
         suggested_key: {

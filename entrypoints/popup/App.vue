@@ -88,7 +88,7 @@ onMounted(async () => {
         <span class="text-sm font-semibold tracking-tight">Gruper</span>
       </div>
       <span class="text-2xs text-text-secondary bg-surface border border-divider px-2 py-0.5 rounded font-medium">
-        {{ modelBadge }}ss
+        {{ modelBadge }}
       </span>
     </header>
 
