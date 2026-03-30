@@ -128,8 +128,9 @@ export async function getCurrentTabs(): Promise<chrome.tabs.Tab[]> {
     if (windowId == null) return [];
   }
 
-  const tabs = await api.tabs.query({ windowId });
-  return tabs.filter((t) => t.groupId === api.tabGroups.TAB_GROUP_ID_NONE && !t.pinned);
+  const allTabs = await api.tabs.query({ windowId });
+  const filtered = allTabs.filter((t) => t.groupId === api.tabGroups.TAB_GROUP_ID_NONE && !t.pinned);
+  return filtered;
 }
 
 /**

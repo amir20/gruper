@@ -27,6 +27,7 @@ async function doGroupTabs() {
     const result = await engine.groupTabs(tabs);
     const applied = await applyGroups(result, tabs);
     groups.value = applied;
+    tabCount.value = (await getCurrentTabs()).length;
     engine.setStatus("ready", `Done \u2014 ${applied.length} groups created`);
   } catch (err) {
     console.error("[Gruper]", err);
@@ -40,6 +41,7 @@ async function handleClearGroups() {
   try {
     await engine.clearGroups();
     groups.value = [];
+    tabCount.value = (await getCurrentTabs()).length;
     engine.setStatus("ready", "Groups cleared");
   } catch (err) {
     engine.setError(toMessage(err));
@@ -61,7 +63,8 @@ async function onApplyConfig(config: {
 }
 
 onMounted(async () => {
-  tabCount.value = (await getCurrentTabs()).length;
+  const initialTabs = await getCurrentTabs();
+  tabCount.value = initialTabs.length;
 
   try {
     await engine.init();
