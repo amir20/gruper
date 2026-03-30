@@ -7,15 +7,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 pnpm install          # Install dependencies (pnpm 10.33+)
 pnpm build            # Chrome production build → .output/chrome-mv3/
-pnpm build:firefox    # Firefox production build → .output/firefox-mv2/
 pnpm dev              # Chrome dev mode with HMR
-pnpm dev:firefox      # Firefox dev mode with HMR
 pnpm typecheck        # TypeScript validation (tsc --noEmit)
 pnpm zip              # Build + zip for Chrome
-pnpm zip:firefox      # Build + zip for Firefox
 ```
 
-After building, load `.output/chrome-mv3/` as an unpacked extension in `chrome://extensions` (Developer mode). For Firefox, load `.output/firefox-mv2/` via `about:debugging`.
+After building, load `.output/chrome-mv3/` as an unpacked extension in `chrome://extensions` (Developer mode).
 
 No linter or test framework is configured.
 
@@ -41,10 +38,6 @@ This is a Manifest V3 browser extension (Vue 3 + TypeScript + Tailwind v4) that 
 
 - **Local (WebLLM)** — `@mlc-ai/web-llm` runs quantized models on GPU via WebGPU inside the service worker. The popup creates an engine connection via `CreateExtensionServiceWorkerMLCEngine`. The `ExtensionServiceWorkerMLCEngineHandler` in the service worker relays messages.
 - **Cloud (OpenRouter)** — `utils/openrouter.ts` makes direct HTTP calls to OpenRouter's OpenAI-compatible endpoint. Requires user-provided API key stored in `chrome.storage.local`.
-
-### Multi-browser support
-
-Built with WXT framework. Targets Chrome and Firefox from the same codebase. Browser-specific builds via `pnpm build` (Chrome) and `pnpm build:firefox` (Firefox). WebLLM local inference may not work on Firefox due to limited WebGPU support — the extension gracefully falls back to suggesting OpenRouter.
 
 ### Key composable
 

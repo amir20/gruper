@@ -1,7 +1,4 @@
 import { defineBackground } from "wxt/utils/define-background";
-import { browser } from "wxt/browser";
-
-const api = globalThis.chrome ?? browser;
 import {
   MLCEngine,
   ExtensionServiceWorkerMLCEngineHandler,
@@ -24,7 +21,7 @@ export default defineBackground({
   main() {
     let handler: ExtensionServiceWorkerMLCEngineHandler | undefined;
 
-    api.runtime.onConnect.addListener((port) => {
+    chrome.runtime.onConnect.addListener((port) => {
       if (handler === undefined) {
         handler = new ExtensionServiceWorkerMLCEngineHandler(port);
       } else {
@@ -65,12 +62,12 @@ export default defineBackground({
     // ─────────────────────────────────────────────────────────────
 
     function setBadge(text: string, color: string) {
-      api.action.setBadgeText({ text });
-      api.action.setBadgeBackgroundColor({ color });
+      chrome.action.setBadgeText({ text });
+      chrome.action.setBadgeBackgroundColor({ color });
     }
 
     function clearBadge() {
-      api.action.setBadgeText({ text: "" });
+      chrome.action.setBadgeText({ text: "" });
     }
 
     let spinnerInterval: ReturnType<typeof setInterval> | null = null;
@@ -96,7 +93,7 @@ export default defineBackground({
     // Keyboard shortcut handler (Alt+Shift+G)
     // ─────────────────────────────────────────────────────────────
 
-    api.commands.onCommand.addListener(async (command) => {
+    chrome.commands.onCommand.addListener(async (command) => {
       if (command !== "group-tabs") return;
 
       startSpinner();
@@ -148,17 +145,17 @@ export default defineBackground({
 
         if (applied.length > 0) {
           setBadge("✓", "#22c55e");
-          api.notifications.create({
+          chrome.notifications.create({
             type: "basic",
-            iconUrl: api.runtime.getURL("/icons/icon128.png"),
+            iconUrl: chrome.runtime.getURL("/icons/icon128.png"),
             title: "Gruper",
             message: `Grouped ${tabs.length} tabs into ${applied.length} groups.`,
           });
         } else {
           setBadge("!", "#f59e0b");
-          api.notifications.create({
+          chrome.notifications.create({
             type: "basic",
-            iconUrl: api.runtime.getURL("/icons/icon128.png"),
+            iconUrl: chrome.runtime.getURL("/icons/icon128.png"),
             title: "Gruper",
             message: "Model returned groups but no tab IDs matched. See service worker console.",
           });
@@ -167,9 +164,9 @@ export default defineBackground({
         console.error("[Gruper] Shortcut grouping failed:", err);
         stopSpinner();
         setBadge("!", "#ef4444");
-        api.notifications.create({
+        chrome.notifications.create({
           type: "basic",
-          iconUrl: api.runtime.getURL("/icons/icon128.png"),
+          iconUrl: chrome.runtime.getURL("/icons/icon128.png"),
           title: "Gruper",
           message: toMessage(err),
         });

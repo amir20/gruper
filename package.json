@@ -5,11 +5,8 @@
   "description": "Browser extension that intelligently groups your tabs using AI",
   "scripts": {
     "dev": "wxt",
-    "dev:firefox": "wxt --browser firefox",
     "build": "wxt build",
-    "build:firefox": "wxt build --browser firefox",
     "zip": "wxt zip",
-    "zip:firefox": "wxt zip --browser firefox",
     "typecheck": "tsc --noEmit",
     "postinstall": "wxt prepare"
   },
