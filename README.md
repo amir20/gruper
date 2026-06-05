@@ -76,8 +76,8 @@ You can also enter any model ID available on OpenRouter.
 ## Setup
 
 ```bash
-npm install
-npm run build
+pnpm install
+pnpm build
 ```
 
 Then load the extension:

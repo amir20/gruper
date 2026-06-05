@@ -50,6 +50,7 @@ export const POPULAR_OPENROUTER_MODELS = [
   "openai/gpt-4.1-mini",
   "meta-llama/llama-4-maverick",
   "deepseek/deepseek-chat-v3-0324",
+  "google/gemma-4-31b-it:free",
 ];
 
 export { default as SYSTEM_PROMPT } from "@/assets/system-prompt.txt?raw";

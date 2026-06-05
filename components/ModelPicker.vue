@@ -112,7 +112,7 @@ function save() {
               v-model="apiKey"
               :type="showApiKey ? 'text' : 'password'"
               placeholder="sk-or-..."
-              class="w-full px-3 py-2 bg-bg border border-divider rounded-md text-xs text-text placeholder-muted/50 focus:outline-none focus:border-accent/50"
+              class="w-full pl-3 pr-[36px] py-2 bg-bg border border-divider rounded-md text-xs text-text placeholder-muted/50 focus:outline-none focus:border-accent/50"
             />
             <button
               class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted hover:text-text-secondary bg-transparent border-none cursor-pointer"
