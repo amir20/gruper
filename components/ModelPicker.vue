@@ -9,7 +9,7 @@ import {
 } from "@/utils/config";
 
 const emit = defineEmits<{
-  apply: [config: { provider: Provider; model?: string; openrouterApiKey?: string; openrouterModel?: string }];
+  apply: [config: { provider: Provider; model?: string; openrouterApiKey?: string; openrouterModel?: string; blacklist?: string[] }];
   close: [];
 }>();
 
@@ -19,6 +19,7 @@ const apiKey = ref("");
 const openrouterModel = ref("");
 const customModel = ref("");
 const showApiKey = ref(false);
+const blacklist = ref("");
 
 onMounted(async () => {
   const config = await getProviderConfig();
@@ -26,6 +27,7 @@ onMounted(async () => {
   localModel.value = config.model;
   apiKey.value = config.openrouterApiKey;
   openrouterModel.value = config.openrouterModel;
+  blacklist.value = config.blacklist.join("\n");
   // If the saved model isn't in the popular list, put it in customModel
   if (config.openrouterModel && !POPULAR_OPENROUTER_MODELS.includes(config.openrouterModel)) {
     customModel.value = config.openrouterModel;
@@ -44,16 +46,23 @@ function onCustomModelInput() {
 }
 
 function save() {
+  const blacklistEntries = blacklist.value
+    .split("\n")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+
   if (provider.value === "openrouter") {
     emit("apply", {
       provider: "openrouter",
       openrouterApiKey: apiKey.value,
       openrouterModel: openrouterModel.value,
+      blacklist: blacklistEntries,
     });
   } else {
     emit("apply", {
       provider: "local",
       model: localModel.value,
+      blacklist: blacklistEntries,
     });
   }
 }
@@ -149,6 +158,20 @@ function save() {
           @input="onCustomModelInput"
         />
       </template>
+
+      <!-- Blacklist -->
+      <div class="mt-4 pt-4 border-t border-divider">
+        <span class="text-[10px] text-muted font-medium uppercase tracking-wider">Ignore tabs (URL contains)</span>
+        <div class="text-[10px] text-muted mt-1 mb-1.5">
+          One per line. Useful for pinned tabs in browsers that don't expose them (e.g. Dia).
+        </div>
+        <textarea
+          v-model="blacklist"
+          rows="3"
+          placeholder="mail.google.com&#10;calendar.google.com&#10;music.youtube.com"
+          class="w-full px-3 py-2 bg-bg border border-divider rounded-md text-xs text-text placeholder-muted/50 focus:outline-none focus:border-accent/50 resize-y font-mono leading-relaxed"
+        />
+      </div>
 
       <!-- Actions -->
       <div class="flex gap-2 mt-4">
