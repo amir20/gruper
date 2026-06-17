@@ -25,6 +25,8 @@ export interface ProviderConfig {
   model: string;
   openrouterApiKey: string;
   openrouterModel: string;
+  /** URL substrings (case-insensitive). Tabs whose URL matches any entry are excluded from grouping. */
+  blacklist: string[];
 }
 
 export const DEFAULT_MODEL = "Qwen2.5-3B-Instruct-q4f16_1-MLC";
@@ -57,14 +59,27 @@ export { default as SYSTEM_PROMPT } from "@/assets/system-prompt.txt?raw";
 
 export async function getProviderConfig(): Promise<ProviderConfig> {
   const stored = await chrome.storage.local.get([
-    "provider", "model", "openrouterApiKey", "openrouterModel",
+    "provider", "model", "openrouterApiKey", "openrouterModel", "blacklist",
   ]);
   return {
     provider: (stored.provider as Provider) || "local",
     model: (stored.model as string) || DEFAULT_MODEL,
     openrouterApiKey: (stored.openrouterApiKey as string) || "",
     openrouterModel: (stored.openrouterModel as string) || DEFAULT_OPENROUTER_MODEL,
+    blacklist: Array.isArray(stored.blacklist) ? (stored.blacklist as string[]) : [],
   };
+}
+
+/**
+ * True if the tab's URL matches any blacklist entry (case-insensitive substring).
+ */
+export function isBlacklisted(url: string | undefined, blacklist: string[]): boolean {
+  if (!url) return false;
+  const lower = url.toLowerCase();
+  return blacklist.some((p) => {
+    const pat = p.trim().toLowerCase();
+    return pat.length > 0 && lower.includes(pat);
+  });
 }
 
 export async function saveProviderConfig(config: Partial<ProviderConfig>): Promise<void> {
@@ -125,8 +140,15 @@ export async function getCurrentTabs(): Promise<chrome.tabs.Tab[]> {
     if (windowId == null) return [];
   }
 
+  const { blacklist } = await getProviderConfig();
+
   const allTabs = await chrome.tabs.query({ windowId });
-  const filtered = allTabs.filter((t) => t.groupId === chrome.tabGroups.TAB_GROUP_ID_NONE && !t.pinned);
+  const filtered = allTabs.filter(
+    (t) =>
+      t.groupId === chrome.tabGroups.TAB_GROUP_ID_NONE &&
+      !t.pinned &&
+      !isBlacklisted(t.url, blacklist),
+  );
   return filtered;
 }
 

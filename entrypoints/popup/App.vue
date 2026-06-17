@@ -53,6 +53,7 @@ async function onApplyConfig(config: {
   model?: string;
   openrouterApiKey?: string;
   openrouterModel?: string;
+  blacklist?: string[];
 }) {
   showModelPicker.value = false;
   try {
