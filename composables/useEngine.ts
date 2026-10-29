@@ -132,7 +132,7 @@ export function useEngine() {
         }
         throw err;
       }
-      raw = reply.choices[0].message.content ?? "";
+      raw = reply.choices[0]?.message.content ?? "";
     }
 
     return remapTabIds(extractJson(raw).groups, idMap);

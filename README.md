@@ -71,19 +71,19 @@ You can also enter any model ID available on OpenRouter.
 - A supported Chromium-based browser (see above)
 - WebGPU support (for local models)
 - ~1 GB free VRAM for the default local model
-- Node.js 18+ (for building from source)
+- [Bun](https://bun.sh) 1.4+ (for building from source)
 
 ## Setup
 
 ```bash
-pnpm install
-pnpm build
+bun install
+bun run build
 ```
 
 Then load the extension:
 1. Go to `chrome://extensions` (or your browser's equivalent)
 2. Enable **Developer mode**
-3. Click **Load unpacked** and select the `dist/` folder
+3. Click **Load unpacked** and select the `dist/chrome-mv3/` folder
 
 ## First Run
 

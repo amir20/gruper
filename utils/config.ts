@@ -136,7 +136,7 @@ export async function getCurrentTabs(): Promise<chrome.tabs.Tab[]> {
   if (!lastFocused || lastFocused.type !== "normal" || windowId == null) {
     const allWindows = await chrome.windows.getAll({ windowTypes: ["normal"] });
     if (allWindows.length === 0) return [];
-    windowId = allWindows[0].id;
+    windowId = allWindows[0]?.id;
     if (windowId == null) return [];
   }
 
