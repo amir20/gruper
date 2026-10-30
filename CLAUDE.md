@@ -5,14 +5,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build & Development Commands
 
 ```bash
-pnpm install          # Install dependencies (pnpm 10.33+)
-pnpm build            # Chrome production build → .output/chrome-mv3/
-pnpm dev              # Chrome dev mode with HMR
-pnpm typecheck        # TypeScript validation (tsc --noEmit)
-pnpm zip              # Build + zip for Chrome
+bun install           # Install dependencies (bun 1.4+)
+bun run build         # Chrome production build → dist/chrome-mv3/
+bun run dev           # Chrome dev mode with HMR
+bun run typecheck     # TypeScript validation (tsc --noEmit)
+bun run zip           # Build + zip for Chrome
 ```
 
-After building, load `.output/chrome-mv3/` as an unpacked extension in `chrome://extensions` (Developer mode).
+After building, load `dist/chrome-mv3/` as an unpacked extension in `chrome://extensions` (Developer mode).
 
 No linter or test framework is configured.
 

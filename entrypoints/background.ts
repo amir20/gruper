@@ -75,10 +75,10 @@ export default defineBackground({
 
     function startSpinner() {
       let i = 0;
-      setBadge(spinnerFrames[0], "#6366f1");
+      setBadge(spinnerFrames[0] ?? "", "#6366f1");
       spinnerInterval = setInterval(() => {
         i = (i + 1) % spinnerFrames.length;
-        setBadge(spinnerFrames[i], "#6366f1");
+        setBadge(spinnerFrames[i] ?? "", "#6366f1");
       }, 120);
     }
 
@@ -120,7 +120,6 @@ export default defineBackground({
           if (!config.openrouterApiKey) throw new Error("OpenRouter API key not set. Open the popup to configure.");
           raw = await chatCompletion(config.openrouterApiKey, config.openrouterModel, messages, {
             temperature: 0.3,
-            max_tokens: 1024,
           });
         } else {
           await ensureModelLoaded();
@@ -131,7 +130,7 @@ export default defineBackground({
             temperature: 0.3,
             max_tokens: 1024,
           });
-          raw = reply.choices[0].message.content ?? "";
+          raw = reply.choices[0]?.message.content ?? "";
         }
 
         console.log("[Gruper] Model response:", raw);

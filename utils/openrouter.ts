@@ -10,7 +10,7 @@ interface Message {
 }
 
 interface ChatCompletionResponse {
-  choices: { message: { content: string } }[];
+  choices: { message: { content: string }; finish_reason?: string }[];
 }
 
 export async function chatCompletion(
@@ -31,7 +31,11 @@ export async function chatCompletion(
       model,
       messages,
       temperature: options.temperature ?? 0.3,
-      max_tokens: options.max_tokens ?? 1024,
+      // Most current models reason before answering, and reasoning tokens count
+      // against max_tokens — leave headroom so the JSON isn't cut off.
+      max_tokens: options.max_tokens ?? 8192,
+      reasoning: { effort: "low" },
+      response_format: { type: "json_object" },
     }),
   });
 
@@ -41,5 +45,9 @@ export async function chatCompletion(
   }
 
   const data: ChatCompletionResponse = await res.json();
-  return data.choices[0]?.message?.content ?? "";
+  const choice = data.choices[0];
+  if (choice?.finish_reason === "length") {
+    throw new Error("Model response was cut off before finishing. Try a different model or fewer tabs.");
+  }
+  return choice?.message?.content ?? "";
 }

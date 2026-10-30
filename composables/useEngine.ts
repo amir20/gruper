@@ -31,7 +31,7 @@ export function useEngine() {
 
   const modelBadge = computed(() => {
     if (currentProvider.value === "openrouter") {
-      // Show last segment: "google/gemini-2.5-flash" → "gemini-2.5-flash"
+      // Show last segment: "google/gemini-3.8-flash" → "gemini-3.8-flash"
       return currentModel.value.split("/").pop() || currentModel.value;
     }
     return currentModel.value.split("-").slice(0, 3).join("-").toLowerCase();
@@ -111,7 +111,6 @@ export function useEngine() {
       if (!config.openrouterApiKey) throw new Error("OpenRouter API key not configured");
       raw = await chatCompletion(config.openrouterApiKey, config.openrouterModel, messages, {
         temperature: 0.3,
-        max_tokens: 1024,
       });
     } else {
       if (!engine) throw new Error("Engine not initialized");
@@ -132,9 +131,10 @@ export function useEngine() {
         }
         throw err;
       }
-      raw = reply.choices[0].message.content ?? "";
+      raw = reply.choices[0]?.message.content ?? "";
     }
 
+    console.log("[Gruper] Model response:", raw);
     return remapTabIds(extractJson(raw).groups, idMap);
   }
 

@@ -58,11 +58,12 @@ Bring your own [OpenRouter](https://openrouter.ai) API key to use cloud models. 
 
 | Model | Provider |
 |-------|----------|
-| **Gemini 2.5 Flash** (default) | Google |
-| Claude Sonnet 4 | Anthropic |
-| GPT-4.1 Mini | OpenAI |
-| Llama 4 Maverick | Meta |
-| DeepSeek Chat v3 | DeepSeek |
+| **Gemini 3.8 Flash** (default) | Google |
+| Claude Haiku 5.5 | Anthropic |
+| GPT-6 Luna | OpenAI |
+| DeepSeek V4.1 Flash | DeepSeek |
+| Qwen3.8 Flash | Qwen |
+| Gemma 4 31B (free) | Google |
 
 You can also enter any model ID available on OpenRouter.
 
@@ -71,19 +72,19 @@ You can also enter any model ID available on OpenRouter.
 - A supported Chromium-based browser (see above)
 - WebGPU support (for local models)
 - ~1 GB free VRAM for the default local model
-- Node.js 18+ (for building from source)
+- [Bun](https://bun.sh) 1.4+ (for building from source)
 
 ## Setup
 
 ```bash
-pnpm install
-pnpm build
+bun install
+bun run build
 ```
 
 Then load the extension:
 1. Go to `chrome://extensions` (or your browser's equivalent)
 2. Enable **Developer mode**
-3. Click **Load unpacked** and select the `dist/` folder
+3. Click **Load unpacked** and select the `dist/chrome-mv3/` folder
 
 ## First Run
 
