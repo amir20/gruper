@@ -120,7 +120,6 @@ export default defineBackground({
           if (!config.openrouterApiKey) throw new Error("OpenRouter API key not set. Open the popup to configure.");
           raw = await chatCompletion(config.openrouterApiKey, config.openrouterModel, messages, {
             temperature: 0.3,
-            max_tokens: 1024,
           });
         } else {
           await ensureModelLoaded();

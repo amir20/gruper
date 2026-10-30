@@ -44,14 +44,14 @@ export const AVAILABLE_MODELS: ModelOption[] = [
   { id: "Qwen2.5-1.5B-Instruct-q4f16_1-MLC" },
 ];
 
-export const DEFAULT_OPENROUTER_MODEL = "google/gemini-2.5-flash";
+export const DEFAULT_OPENROUTER_MODEL = "google/gemini-3.8-flash";
 
 export const POPULAR_OPENROUTER_MODELS = [
-  "google/gemini-2.5-flash",
-  "anthropic/claude-sonnet-4",
-  "openai/gpt-4.1-mini",
-  "meta-llama/llama-4-maverick",
-  "deepseek/deepseek-chat-v3-0324",
+  "google/gemini-3.8-flash",
+  "anthropic/claude-haiku-5.5",
+  "openai/gpt-6-luna",
+  "deepseek/deepseek-v4.1-flash",
+  "qwen/qwen3.8-flash",
   "google/gemma-4-31b-it:free",
 ];
 
@@ -197,33 +197,111 @@ export function extractJson(raw: string): GroupingResponse {
 
 const VALID_COLORS = new Set<TabGroupColor>(["blue","cyan","green","grey","orange","pink","purple","red","yellow"]);
 
+/**
+ * Reload a discarded (sleeping) tab and wait until the browser has woken it up.
+ */
+async function wakeTab(id: number, timeoutMs = 5000): Promise<void> {
+  await chrome.tabs.reload(id);
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const tab = await chrome.tabs.get(id);
+    if (!tab.discarded && tab.status !== "unloaded") return;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+}
+
+/**
+ * Group tabs one at a time. Some browsers (e.g. Dia) reject the whole
+ * chrome.tabs.group call if any single tab is discarded, so this groups the
+ * awake tabs first, then wakes the sleeping ones, groups them, and puts them
+ * back to sleep.
+ */
+async function groupTabsIndividually(
+  ids: number[],
+  windowId: number | undefined,
+  tabsById: Map<number, chrome.tabs.Tab>,
+): Promise<{ groupId?: number; grouped: number[] }> {
+  let groupId: number | undefined;
+  const grouped: number[] = [];
+  const sleeping: number[] = [];
+
+  async function tryGroup(id: number): Promise<boolean> {
+    try {
+      groupId = await chrome.tabs.group(
+        groupId === undefined
+          ? { tabIds: id, createProperties: windowId ? { windowId } : undefined }
+          : { tabIds: id, groupId },
+      );
+      grouped.push(id);
+      return true;
+    } catch (err) {
+      if (tabsById.get(id)?.discarded) {
+        sleeping.push(id);
+      } else {
+        console.warn("[Gruper] Could not group tab", tabsById.get(id)?.title, toMessage(err));
+      }
+      return false;
+    }
+  }
+
+  for (const id of ids) await tryGroup(id);
+  if (sleeping.length === 0) return { groupId, grouped };
+
+  const toWake = sleeping.splice(0);
+  await Promise.all(toWake.map((id) => wakeTab(id).catch(() => undefined)));
+  for (const id of toWake) {
+    if (await tryGroup(id)) {
+      chrome.tabs.discard(id).catch(() => undefined);
+    } else {
+      console.warn("[Gruper] Could not group tab even after waking it", tabsById.get(id)?.title);
+    }
+  }
+
+  return { groupId, grouped };
+}
+
 export async function applyGroups(groups: TabGroup[], allTabs: chrome.tabs.Tab[]): Promise<TabGroup[]> {
-  const validTabIds = new Set(allTabs.map((t) => t.id).filter((id): id is number => id !== undefined));
+  const tabsById = new Map(allTabs.filter((t) => t.id != null).map((t) => [t.id!, t]));
   const windowId = allTabs[0]?.windowId;
   const applied: TabGroup[] = [];
 
   for (const group of groups) {
-    const ids = (group.tabIds || []).filter((id) => validTabIds.has(id));
+    const ids = (group.tabIds || []).filter((id) => tabsById.has(id));
     if (ids.length === 0) continue;
 
     const color: TabGroupColor = VALID_COLORS.has(group.color) ? group.color : "grey";
 
+    let groupId: number | undefined;
+    let grouped = ids;
     try {
-      const groupId = await chrome.tabs.group({
+      groupId = await chrome.tabs.group({
         tabIds: ids as [number, ...number[]],
         createProperties: windowId ? { windowId } : undefined,
       });
+    } catch (err) {
+      console.warn("[Gruper] Grouping failed, retrying tab by tab:", group.name, toMessage(err));
+      ({ groupId, grouped } = await groupTabsIndividually(ids, windowId, tabsById));
+    }
+    if (groupId === undefined || grouped.length === 0) continue;
+
+    try {
       await chrome.tabGroups.update(groupId, {
         title: group.name,
         color,
         collapsed: false,
       });
-
-      applied.push({ ...group, tabIds: ids });
     } catch (err) {
-      console.warn("[Gruper] Failed to apply group", group.name, err);
+      console.warn("[Gruper] Failed to name group", group.name, err);
     }
+    applied.push({ ...group, tabIds: grouped });
   }
+
+  const groupedIds = new Set(applied.flatMap((g) => g.tabIds));
+  console.log(
+    `[Gruper] Model returned ${groups.length} groups, applied ${applied.length}.`,
+    `${groupedIds.size}/${allTabs.length} tabs grouped. Left out:`,
+    allTabs.filter((t) => t.id != null && !groupedIds.has(t.id)).map((t) => t.title),
+  );
 
   return applied;
 }

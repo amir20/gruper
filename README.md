@@ -58,11 +58,12 @@ Bring your own [OpenRouter](https://openrouter.ai) API key to use cloud models. 
 
 | Model | Provider |
 |-------|----------|
-| **Gemini 2.5 Flash** (default) | Google |
-| Claude Sonnet 4 | Anthropic |
-| GPT-4.1 Mini | OpenAI |
-| Llama 4 Maverick | Meta |
-| DeepSeek Chat v3 | DeepSeek |
+| **Gemini 3.8 Flash** (default) | Google |
+| Claude Haiku 5.5 | Anthropic |
+| GPT-6 Luna | OpenAI |
+| DeepSeek V4.1 Flash | DeepSeek |
+| Qwen3.8 Flash | Qwen |
+| Gemma 4 31B (free) | Google |
 
 You can also enter any model ID available on OpenRouter.
 
